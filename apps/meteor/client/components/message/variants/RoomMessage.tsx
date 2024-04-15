@@ -2,9 +2,9 @@ import type { IMessage } from '@rocket.chat/core-typings';
 import { Message, MessageLeftContainer, MessageContainer, CheckBox } from '@rocket.chat/fuselage';
 import { useToggle } from '@rocket.chat/fuselage-hooks';
 import { MessageAvatar } from '@rocket.chat/ui-avatar';
-import { useUserId } from '@rocket.chat/ui-contexts';
+import { useTranslation, useUserId } from '@rocket.chat/ui-contexts';
 import type { ComponentProps, ReactElement } from 'react';
-import React, { useRef, memo } from 'react';
+import React, { memo } from 'react';
 
 import type { MessageActionContext } from '../../../../app/ui-utils/client/lib/MessageAction';
 import { useIsMessageHighlight } from '../../../views/room/MessageList/contexts/MessageHighlightContext';
@@ -47,11 +47,11 @@ const RoomMessage = ({
 	searchText,
 	...props
 }: RoomMessageProps): ReactElement => {
+	const t = useTranslation();
 	const uid = useUserId();
 	const editing = useIsMessageHighlight(message._id);
 	const [displayIgnoredMessage, toggleDisplayIgnoredMessage] = useToggle(false);
 	const ignored = (ignoredUser || message.ignored) && !displayIgnoredMessage;
-	const messageRef = useRef(null);
 	const { openUserCard, triggerProps } = useUserCard();
 
 	const selecting = useIsSelecting();
@@ -59,14 +59,17 @@ const RoomMessage = ({
 	const selected = useIsSelectedMessage(message._id);
 
 	useCountSelected();
-	useJumpToMessage(message._id, messageRef);
+
+	const messageRef = useJumpToMessage(message._id);
 
 	return (
 		<Message
 			ref={messageRef}
 			id={message._id}
 			role='listitem'
+			aria-roledescription={sequential ? t('sequential_message') : t('message')}
 			tabIndex={0}
+			aria-labelledby={`${message._id}-displayName ${message._id}-time ${message._id}-content`}
 			onClick={selecting ? toggleSelected : undefined}
 			isSelected={selected}
 			isEditing={editing}

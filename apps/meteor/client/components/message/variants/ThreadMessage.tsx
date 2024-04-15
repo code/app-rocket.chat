@@ -2,9 +2,9 @@ import { type IThreadMessage, type IThreadMainMessage, isVideoConfMessage } from
 import { Message, MessageLeftContainer, MessageContainer } from '@rocket.chat/fuselage';
 import { useToggle } from '@rocket.chat/fuselage-hooks';
 import { MessageAvatar } from '@rocket.chat/ui-avatar';
-import { useUserId } from '@rocket.chat/ui-contexts';
+import { useTranslation, useUserId } from '@rocket.chat/ui-contexts';
 import type { ReactElement } from 'react';
-import React, { memo, useRef } from 'react';
+import React, { memo } from 'react';
 
 import type { MessageActionContext } from '../../../../app/ui-utils/client/lib/MessageAction';
 import { useIsMessageHighlight } from '../../../views/room/MessageList/contexts/MessageHighlightContext';
@@ -25,21 +25,21 @@ type ThreadMessageProps = {
 };
 
 const ThreadMessage = ({ message, sequential, unread, showUserAvatar }: ThreadMessageProps): ReactElement => {
+	const t = useTranslation();
 	const uid = useUserId();
 	const editing = useIsMessageHighlight(message._id);
 	const [ignored, toggleIgnoring] = useToggle((message as { ignored?: boolean }).ignored);
 	const { openUserCard, triggerProps } = useUserCard();
 
-	const messageRef = useRef(null);
-
 	// Checks if is videoconf message to limit toolbox actions
 	const messageContext: MessageActionContext = isVideoConfMessage(message) ? 'videoconf-threads' : 'threads';
 
-	useJumpToMessage(message._id, messageRef);
+	const messageRef = useJumpToMessage(message._id);
 
 	return (
 		<Message
 			role='listitem'
+			aria-roledescription={t('thread_message')}
 			tabIndex={0}
 			id={message._id}
 			ref={messageRef}

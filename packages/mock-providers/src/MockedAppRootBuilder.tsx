@@ -90,7 +90,7 @@ export class MockedAppRootBuilder {
 	};
 
 	private modal: ContextType<typeof ModalContext> = {
-		currentModal: null,
+		currentModal: { component: null },
 		modal: {
 			setModal: () => undefined,
 		},
