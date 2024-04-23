@@ -89,3 +89,30 @@ export function createFakeMessageWithMd(overrides?: Partial<MessageWithMdEnforce
 		...overrides,
 	};
 }
+
+export function createFakeMessageWithAttachment<TMessage extends IMessage>(overrides?: Partial<TMessage>): TMessage;
+export function createFakeMessageWithAttachment(overrides?: Partial<IMessage>): IMessage {
+	const fakeMessage = createFakeMessage(overrides);
+	const fileId = faker.database.mongodbObjectId();
+	const fileName = faker.system.commonFileName('txt');
+
+	return {
+		...fakeMessage,
+		msg: '',
+		file: {
+			_id: fileId,
+			name: fileName,
+			type: 'text/plain',
+			size: faker.number.int(),
+			format: faker.string.alpha(),
+		},
+		attachments: [
+			{
+				type: 'file',
+				title: fileName,
+				title_link: `/file-upload/${fileId}/${fileName}`,
+			},
+		],
+		...overrides,
+	};
+}
