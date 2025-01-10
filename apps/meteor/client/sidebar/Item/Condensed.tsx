@@ -1,8 +1,8 @@
 import { IconButton, Sidebar } from '@rocket.chat/fuselage';
-import { useMutableCallback, usePrefersReducedMotion } from '@rocket.chat/fuselage-hooks';
+import { useEffectEvent, usePrefersReducedMotion } from '@rocket.chat/fuselage-hooks';
 import type { Keys as IconName } from '@rocket.chat/icons';
-import type { FC, ReactElement } from 'react';
-import React, { memo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { memo, useState } from 'react';
 
 type CondensedProps = {
 	title: ReactElement | string;
@@ -19,12 +19,12 @@ type CondensedProps = {
 	clickable?: boolean;
 };
 
-const Condensed: FC<CondensedProps> = ({ icon, title = '', avatar, actions, href, unread, menu, badges, ...props }) => {
+const Condensed = ({ icon, title = '', avatar, actions, href, unread, menu, badges, ...props }: CondensedProps) => {
 	const [menuVisibility, setMenuVisibility] = useState(!!window.DISABLE_ANIMATION);
 
 	const isReduceMotionEnabled = usePrefersReducedMotion();
 
-	const handleMenu = useMutableCallback((e) => {
+	const handleMenu = useEffectEvent((e) => {
 		setMenuVisibility(e.target.offsetWidth > 0 && Boolean(menu));
 	});
 	const handleMenuEvent = {
