@@ -1,7 +1,8 @@
 import { HeroLayout, HeroLayoutTitle } from '@rocket.chat/layout';
-import { useRouteParameter, useUserId, useTranslation } from '@rocket.chat/ui-contexts';
+import { useRouteParameter, useUserId } from '@rocket.chat/ui-contexts';
 import type { ReactElement } from 'react';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import LoginPage from '../root/MainLayout/LoginPage';
 import PageLoading from '../root/PageLoading';
@@ -9,11 +10,11 @@ import { useInviteTokenMutation } from './hooks/useInviteTokenMutation';
 import { useValidateInviteQuery } from './hooks/useValidateInviteQuery';
 
 const InvitePage = (): ReactElement => {
-	const t = useTranslation();
+	const { t } = useTranslation();
 
 	const token = useRouteParameter('hash');
 	const userId = useUserId();
-	const { isLoading, data: isValidInvite } = useValidateInviteQuery(userId, token);
+	const { isPending, data: isValidInvite } = useValidateInviteQuery(userId, token);
 
 	const getInviteRoomMutation = useInviteTokenMutation();
 
@@ -23,7 +24,7 @@ const InvitePage = (): ReactElement => {
 		}
 	}, [getInviteRoomMutation, token, userId]);
 
-	if (isLoading) {
+	if (isPending) {
 		return <PageLoading />;
 	}
 

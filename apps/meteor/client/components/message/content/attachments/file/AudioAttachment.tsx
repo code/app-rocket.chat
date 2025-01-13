@@ -1,10 +1,10 @@
 import type { AudioAttachmentProps } from '@rocket.chat/core-typings';
 import { AudioPlayer } from '@rocket.chat/fuselage';
 import { useMediaUrl } from '@rocket.chat/ui-contexts';
-import React from 'react';
 
+import MarkdownText from '../../../../MarkdownText';
 import MessageCollapsible from '../../../MessageCollapsible';
-import AttachmentDescription from '../structure/AttachmentDescription';
+import MessageContentBody from '../../../MessageContentBody';
 
 const AudioAttachment = ({
 	title,
@@ -20,7 +20,7 @@ const AudioAttachment = ({
 	const getURL = useMediaUrl();
 	return (
 		<>
-			<AttachmentDescription description={description} descriptionMd={descriptionMd} />
+			{descriptionMd ? <MessageContentBody md={descriptionMd} /> : <MarkdownText parseEmoji content={description} />}
 			<MessageCollapsible title={title} hasDownload={hasDownload} link={getURL(link || url)} size={size} isCollapsed={collapsed}>
 				<AudioPlayer src={getURL(url)} type={type} />
 			</MessageCollapsible>

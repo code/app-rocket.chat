@@ -1,11 +1,10 @@
 import type { IMessage } from '@rocket.chat/core-typings';
 import { isQuoteAttachment, isE2EEMessage } from '@rocket.chat/core-typings';
-import { MessageBody } from '@rocket.chat/fuselage';
 import { PreviewMarkup } from '@rocket.chat/gazzodown';
 import type { Root } from '@rocket.chat/message-parser';
-import { useTranslation } from '@rocket.chat/ui-contexts';
 import type { ReactElement } from 'react';
-import React, { memo } from 'react';
+import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import GazzodownText from '../../../GazzodownText';
 
@@ -14,7 +13,7 @@ type ThreadMessagePreviewBodyProps = {
 };
 
 const ThreadMessagePreviewBody = ({ message }: ThreadMessagePreviewBodyProps): ReactElement => {
-	const t = useTranslation();
+	const { t } = useTranslation();
 	const isEncryptedMessage = isE2EEMessage(message);
 
 	const getMessage = () => {
@@ -40,7 +39,7 @@ const ThreadMessagePreviewBody = ({ message }: ThreadMessagePreviewBodyProps): R
 			);
 		}
 		if (isEncryptedMessage && message.e2e === 'pending') {
-			return <MessageBody>{t('E2E_message_encrypted_placeholder')}</MessageBody>;
+			return <>{t('E2E_message_encrypted_placeholder')}</>;
 		}
 		return <>{message.msg}</>;
 	};

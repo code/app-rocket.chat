@@ -1,18 +1,18 @@
 import { Apps } from '@rocket.chat/apps';
-import { Message, api } from '@rocket.chat/core-services';
+import { api, Message } from '@rocket.chat/core-services';
 import type { IMessage, IRoom } from '@rocket.chat/core-typings';
 import { Messages } from '@rocket.chat/models';
 import { Match, check } from 'meteor/check';
 
-import { callbacks } from '../../../../lib/callbacks';
+import { parseUrlsInMessage } from './parseUrlsInMessage';
 import { isRelativeURL } from '../../../../lib/utils/isRelativeURL';
 import { isURL } from '../../../../lib/utils/isURL';
-import { broadcastMessageFromData } from '../../../../server/modules/watchers/lib/messages';
 import { hasPermissionAsync } from '../../../authorization/server/functions/hasPermission';
 import { FileUpload } from '../../../file-upload/server';
 import { settings } from '../../../settings/server';
+import { afterSaveMessage } from '../lib/afterSaveMessage';
+import { notifyOnRoomChangedById, notifyOnMessageChange } from '../lib/notifyListener';
 import { validateCustomMessageFields } from '../lib/validateCustomMessageFields';
-import { parseUrlsInMessage } from './parseUrlsInMessage';
 
 // TODO: most of the types here are wrong, but I don't want to change them now
 
@@ -289,12 +289,12 @@ export const sendMessage = async function (user: any, message: any, room: any, u
 		void Apps.getBridges()?.getListenerBridge().messageEvent('IPostMessageSent', message);
 	}
 
-	/* Defer other updates as their return is not interesting to the user */
+	// TODO: is there an opportunity to send returned data to notifyOnMessageChange?
+	await afterSaveMessage(message, room);
 
-	// Execute all callbacks
-	await callbacks.run('afterSaveMessage', message, room);
-	void broadcastMessageFromData({
-		id: message._id,
-	});
+	void notifyOnMessageChange({ id: message._id });
+
+	void notifyOnRoomChangedById(message.rid);
+
 	return message;
 };
