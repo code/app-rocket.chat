@@ -1,9 +1,9 @@
 import { Box, CodeSnippet } from '@rocket.chat/fuselage';
 import { useClipboard } from '@rocket.chat/fuselage-hooks';
 import { ExternalLink } from '@rocket.chat/ui-client';
-import { useTranslation } from '@rocket.chat/ui-contexts';
+import DOMPurify from 'dompurify';
 import type { ReactElement } from 'react';
-import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import GenericModal from '../../components/GenericModal';
 
@@ -14,10 +14,10 @@ type SaveE2EPasswordModalProps = {
 	onConfirm: () => void;
 };
 
-const DOCS_URL = 'https://rocket.chat/docs/user-guides/end-to-end-encryption/';
+const DOCS_URL = 'https://go.rocket.chat/i/e2ee-guide';
 
 const SaveE2EPasswordModal = ({ randomPassword, onClose, onCancel, onConfirm }: SaveE2EPasswordModalProps): ReactElement => {
-	const t = useTranslation();
+	const { t } = useTranslation();
 	const { copy, hasCopied } = useClipboard(randomPassword);
 
 	return (
@@ -32,7 +32,7 @@ const SaveE2EPasswordModal = ({ randomPassword, onClose, onCancel, onConfirm }: 
 			annotation={t('You_can_do_from_account_preferences')}
 		>
 			<p>
-				<span dangerouslySetInnerHTML={{ __html: t('E2E_password_reveal_text', { randomPassword }) }} />
+				<span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t('E2E_password_reveal_text', { randomPassword })) }} />
 				<ExternalLink to={DOCS_URL} mis={4}>
 					{t('Learn_more_about_E2EE')}
 				</ExternalLink>

@@ -1,18 +1,20 @@
 /* eslint-disable complexity */
 import { AppEvents, Apps } from '@rocket.chat/apps';
 import { AppsEngineException } from '@rocket.chat/apps-engine/definition/exceptions';
-import { Message, Team } from '@rocket.chat/core-services';
+import { Federation, FederationEE, License, Message, Team } from '@rocket.chat/core-services';
 import type { ICreateRoomParams, ISubscriptionExtraData } from '@rocket.chat/core-services';
 import type { ICreatedRoom, IUser, IRoom, RoomType } from '@rocket.chat/core-typings';
 import { Rooms, Subscriptions, Users } from '@rocket.chat/models';
 import { Meteor } from 'meteor/meteor';
 
+import { createDirectRoom } from './createDirectRoom';
 import { callbacks } from '../../../../lib/callbacks';
 import { beforeCreateRoomCallback } from '../../../../lib/callbacks/beforeCreateRoomCallback';
 import { getSubscriptionAutotranslateDefaultConfig } from '../../../../server/lib/getSubscriptionAutotranslateDefaultConfig';
+import { calculateRoomRolePriorityFromRoles, syncRoomRolePriorityForUserAndRoom } from '../../../../server/lib/roles/syncRoomRolePriority';
 import { getDefaultSubscriptionPref } from '../../../utils/lib/getDefaultSubscriptionPref';
 import { getValidRoomName } from '../../../utils/server/lib/getValidRoomName';
-import { createDirectRoom } from './createDirectRoom';
+import { notifyOnRoomChanged, notifyOnSubscriptionChangedById } from '../lib/notifyListener';
 
 const isValidName = (name: unknown): name is string => {
 	return typeof name === 'string' && name.trim().length > 0;
@@ -46,7 +48,12 @@ async function createUsersSubscriptions({
 			...getDefaultSubscriptionPref(owner),
 		};
 
-		await Subscriptions.createWithRoomAndUser(room, owner, extra);
+		const { insertedId } = await Subscriptions.createWithRoomAndUser(room, owner, extra);
+		await syncRoomRolePriorityForUserAndRoom(owner._id, room._id, ['owner']);
+
+		if (insertedId) {
+			await notifyOnRoomChanged(room, 'inserted');
+		}
 
 		return;
 	}
@@ -54,6 +61,8 @@ async function createUsersSubscriptions({
 	const subs = [];
 
 	const memberIds = [];
+
+	const memberIdAndRolePriorityMap: Record<IUser['_id'], number> = {};
 
 	const membersCursor = Users.findUsersByUsernames<Pick<IUser, '_id' | 'username' | 'settings' | 'federated' | 'roles'>>(members, {
 		projection: { 'username': 1, 'settings.preferences': 1, 'federated': 1, 'roles': 1 },
@@ -69,9 +78,7 @@ async function createUsersSubscriptions({
 
 		memberIds.push(member._id);
 
-		const extra: Partial<ISubscriptionExtraData> = options?.subscriptionExtra || {};
-
-		extra.open = true;
+		const extra: Partial<ISubscriptionExtraData> = { open: true, ...options?.subscriptionExtra };
 
 		if (room.prid) {
 			extra.prid = room.prid;
@@ -89,15 +96,23 @@ async function createUsersSubscriptions({
 			extraData: {
 				...extra,
 				...autoTranslateConfig,
+				...getDefaultSubscriptionPref(member),
 			},
 		});
+
+		if (extra.roles) {
+			memberIdAndRolePriorityMap[member._id] = calculateRoomRolePriorityFromRoles(extra.roles);
+		}
 	}
 
 	if (!['d', 'l'].includes(room.t)) {
 		await Users.addRoomByUserIds(memberIds, room._id);
 	}
 
-	await Subscriptions.createWithRoomAndManyUsers(room, subs);
+	const { insertedIds } = await Subscriptions.createWithRoomAndManyUsers(room, subs);
+	await Users.assignRoomRolePrioritiesByUserIdPriorityMap(memberIdAndRolePriorityMap, room._id);
+
+	Object.values(insertedIds).forEach((subId) => notifyOnSubscriptionChangedById(subId, 'inserted'));
 
 	await Rooms.incUsersCountById(room._id, subs.length);
 }
@@ -111,12 +126,14 @@ export const createRoom = async <T extends RoomType>(
 	readOnly?: boolean,
 	roomExtraData?: Partial<IRoom>,
 	options?: ICreateRoomParams['options'],
+	sidepanel?: ICreateRoomParams['sidepanel'],
 ): Promise<
 	ICreatedRoom & {
 		rid: string;
 	}
 > => {
 	const { teamId, ...extraData } = roomExtraData || ({} as IRoom);
+
 	await beforeCreateRoomCallback.run({
 		type,
 		// name,
@@ -124,9 +141,9 @@ export const createRoom = async <T extends RoomType>(
 		// members,
 		// readOnly,
 		extraData,
-
 		// options,
 	});
+
 	if (type === 'd') {
 		return createDirectRoom(members as IUser[], extraData, { ...options, creator: options?.creator || owner?.username });
 	}
@@ -185,6 +202,7 @@ export const createRoom = async <T extends RoomType>(
 		},
 		ts: now,
 		ro: readOnly === true,
+		sidepanel,
 	};
 
 	if (teamId) {
@@ -220,13 +238,20 @@ export const createRoom = async <T extends RoomType>(
 		Object.assign(roomProps, eventResult);
 	}
 
+	const shouldBeHandledByFederation = roomProps.federated === true || owner.username.includes(':');
+
+	if (shouldBeHandledByFederation) {
+		const federation = (await License.hasValidLicense()) ? FederationEE : Federation;
+		await federation.beforeCreateRoom(roomProps);
+	}
+
 	if (type === 'c') {
 		await callbacks.run('beforeCreateChannel', owner, roomProps);
 	}
 
 	const room = await Rooms.createWithFullRoomData(roomProps);
 
-	const shouldBeHandledByFederation = room.federated === true || owner.username.includes(':');
+	void notifyOnRoomChanged(room, 'inserted');
 
 	await createUsersSubscriptions({ room, members, now, owner, options, shouldBeHandledByFederation });
 

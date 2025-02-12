@@ -1,17 +1,18 @@
 import { Message } from '@rocket.chat/core-services';
 import type { IRoom } from '@rocket.chat/core-typings';
+import type { ServerMethods } from '@rocket.chat/ddp-client';
 import { Rooms, Subscriptions, Users } from '@rocket.chat/models';
-import type { ServerMethods } from '@rocket.chat/ui-contexts';
 import { Match, check } from 'meteor/check';
 import { Meteor } from 'meteor/meteor';
 
 import { hasPermissionAsync } from '../../app/authorization/server/functions/hasPermission';
 import { methodDeprecationLogger } from '../../app/lib/server/lib/deprecationWarningLogger';
+import { notifyOnRoomChangedById } from '../../app/lib/server/lib/notifyListener';
 import { RoomMemberActions } from '../../definition/IRoomTypeConfig';
 import { callbacks } from '../../lib/callbacks';
 import { roomCoordinator } from '../lib/rooms/roomCoordinator';
 
-declare module '@rocket.chat/ui-contexts' {
+declare module '@rocket.chat/ddp-client' {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
 	interface ServerMethods {
 		muteUserInRoom(data: { rid: IRoom['_id']; username: string }): boolean;
@@ -75,6 +76,8 @@ export const muteUserInRoom = async (fromId: string, data: { rid: IRoom['_id']; 
 	await Message.saveSystemMessage('user-muted', data.rid, mutedUser.username, fromUser);
 
 	await callbacks.run('afterMuteUser', { mutedUser, fromUser }, room);
+
+	void notifyOnRoomChangedById(data.rid);
 
 	return true;
 };
